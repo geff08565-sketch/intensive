@@ -734,6 +734,8 @@ let pool = { eth: 0, usdc: 0, k: 0 };
 let auto_ = { usd: 0, rub: 0, k: 0 };
 let poolDir = 'usdc-eth', autoDir = 'rub-usd';
 let swapLog = [];
+let poolVisualBase = { eth: 0, usdc: 0 };
+let autoVisualBase = { usd: 0, rub: 0 };
 
 function isPoolEmpty() { return pool.eth === 0 || pool.usdc === 0; }
 function isAutoEmpty() { return auto_.usd === 0 || auto_.rub === 0; }
@@ -804,10 +806,12 @@ function updatePoolUI() {
     document.getElementById('p-usdc-label').textContent = '0';
     document.getElementById('p-k-label').textContent = 'k = 0';
   } else {
-    const maxEthVis = Math.max(20, pool.eth * 1.5);
-    const maxUsdcVis = Math.max(50000, pool.usdc * 1.5);
-    document.getElementById('p-eth-liq').style.height = Math.min(95, Math.max(5, (pool.eth / maxEthVis) * 100)) + '%';
-    document.getElementById('p-usdc-liq').style.height = Math.min(95, Math.max(5, (pool.usdc / maxUsdcVis) * 100)) + '%';
+    const ethBase = Math.max(poolVisualBase.eth || 0, pool.eth, 1);
+    const usdcBase = Math.max(poolVisualBase.usdc || 0, pool.usdc, 1);
+    const ethHeight = Math.min(95, Math.max(8, (pool.eth / ethBase) * 100));
+    const usdcHeight = Math.min(95, Math.max(8, (pool.usdc / usdcBase) * 100));
+    document.getElementById('p-eth-liq').style.height = ethHeight + '%';
+    document.getElementById('p-usdc-liq').style.height = usdcHeight + '%';
     document.getElementById('p-eth-label').textContent = pool.eth.toFixed(2);
     document.getElementById('p-usdc-label').textContent = pool.usdc.toLocaleString(undefined,{maximumFractionDigits:0});
     document.getElementById('p-k-label').textContent = 'k = ' + pool.k.toLocaleString(undefined,{maximumFractionDigits:0});
@@ -884,9 +888,13 @@ function addPoolLiq() {
     // First deposit — user defines price
     pool.eth = ethAmt;
     pool.usdc = usdcAmt;
+    poolVisualBase.eth = ethAmt;
+    poolVisualBase.usdc = usdcAmt;
   } else {
     pool.eth += ethAmt;
     pool.usdc += usdcAmt;
+    poolVisualBase.eth = Math.max(poolVisualBase.eth, pool.eth);
+    poolVisualBase.usdc = Math.max(poolVisualBase.usdc, pool.usdc);
   }
   pool.k = pool.eth * pool.usdc;
   updatePoolUI(); updatePoolPreview(); drawCurve();
@@ -894,6 +902,7 @@ function addPoolLiq() {
 
 function poolReset() {
   pool = { eth: 0, usdc: 0, k: 0 };
+  poolVisualBase = { eth: 0, usdc: 0 };
   swapLog = [];
   document.getElementById('p-liq-eth').value = '10';
   document.getElementById('p-liq-usdc').value = '25000';
@@ -964,10 +973,12 @@ function updateAutoUI() {
     document.getElementById('a-usd-label').textContent = '$0';
     document.getElementById('a-rub-label').textContent = '0₽';
   } else {
-    const maxUsdVis = Math.max(2000, auto_.usd * 1.5);
-    const maxRubVis = Math.max(190000, auto_.rub * 1.5);
-    document.getElementById('a-usd-liq').style.height = Math.min(95, Math.max(5, (auto_.usd / maxUsdVis) * 100)) + '%';
-    document.getElementById('a-rub-liq').style.height = Math.min(95, Math.max(5, (auto_.rub / maxRubVis) * 100)) + '%';
+    const usdBase = Math.max(autoVisualBase.usd || 0, auto_.usd, 1);
+    const rubBase = Math.max(autoVisualBase.rub || 0, auto_.rub, 1);
+    const usdHeight = Math.min(95, Math.max(8, (auto_.usd / usdBase) * 100));
+    const rubHeight = Math.min(95, Math.max(8, (auto_.rub / rubBase) * 100));
+    document.getElementById('a-usd-liq').style.height = usdHeight + '%';
+    document.getElementById('a-rub-liq').style.height = rubHeight + '%';
     document.getElementById('a-usd-label').textContent = '$' + auto_.usd.toLocaleString(undefined,{maximumFractionDigits:0});
     document.getElementById('a-rub-label').textContent = auto_.rub.toLocaleString(undefined,{maximumFractionDigits:0}) + '₽';
   }
@@ -1036,9 +1047,13 @@ function addAutoLiq() {
   if (isAutoEmpty()) {
     auto_.usd = usdAmt;
     auto_.rub = rubAmt;
+    autoVisualBase.usd = usdAmt;
+    autoVisualBase.rub = rubAmt;
   } else {
     auto_.usd += usdAmt;
     auto_.rub += rubAmt;
+    autoVisualBase.usd = Math.max(autoVisualBase.usd, auto_.usd);
+    autoVisualBase.rub = Math.max(autoVisualBase.rub, auto_.rub);
   }
   auto_.k = auto_.usd * auto_.rub;
   updateAutoUI(); updateAutoPreview();
@@ -1046,6 +1061,7 @@ function addAutoLiq() {
 
 function autoReset() {
   auto_ = { usd: 0, rub: 0, k: 0 };
+  autoVisualBase = { usd: 0, rub: 0 };
   document.getElementById('a-liq-usd').value = '1000';
   document.getElementById('a-liq-rub').value = '95000';
   updateAutoUI(); updateAutoPreview();
