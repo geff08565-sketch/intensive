@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Финансовый план DeFi — Калькулятор</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #111; font-family: 'Montserrat', sans-serif; color: #d4d4d4; overflow: hidden; height: 100vh; }
+
+  .accent { color: #ef4444; }
+  h1, h2, h3, h4 { color: #fff; }
+
+  /* ── SLIDES WRAPPER ── */
+  .slides-viewport { position: relative; width: 100%; height: 100vh; overflow: hidden; }
+  .slide {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100vh;
+    overflow-y: auto; overflow-x: hidden;
+    display: flex; flex-direction: column;
+    transform: translateX(100%); opacity: 0;
+    transition: transform .45s cubic-bezier(.4,0,.2,1), opacity .45s ease;
+    -webkit-overflow-scrolling: touch;
+  }
+  .slide.active { transform: translateX(0); opacity: 1; z-index: 2; }
+  .slide.exit-left { transform: translateX(-100%); opacity: 0; z-index: 1; }
+  .slide.exit-right { transform: translateX(100%); opacity: 0; z-index: 1; }
+
+  .slide-inner {
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+    max-width: 860px; margin: 0 auto; padding: 40px 20px; width: 100%;
+  }
+  /* For results slide — top-aligned, scrollable */
+  .slide-inner.top-align { justify-content: flex-start; padding-top: 32px; padding-bottom: 60px; }
+
+  /* ── STEP INDICATOR ── */
+  .steps-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 16px 20px; background: rgba(17,17,17,0.9); backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .step-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: rgba(255,255,255,0.12); transition: .3s;
+  }
+  .step-dot.done { background: #ef4444; }
+  .step-dot.current { background: #ef4444; box-shadow: 0 0 10px rgba(239,68,68,0.5); width: 12px; height: 12px; }
+  .step-line { width: 40px; height: 2px; background: rgba(255,255,255,0.08); border-radius: 1px; transition: .3s; }
+  .step-line.done { background: rgba(239,68,68,0.4); }
+
+  /* ── COMMON ELEMENTS ── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 30px; padding: 6px 16px;
+    font-size: 13px; color: #ef4444; font-weight: 700; margin-bottom: 24px;
+  }
+  .badge-dot { width: 8px; height: 8px; background: #ef4444; border-radius: 50%; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* ── GOAL CARDS ── */
+  .goal-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 32px; }
+  .goal-card {
+    background: rgba(255,255,255,0.03); border: 2px solid rgba(255,255,255,0.08);
+    border-radius: 20px; padding: 36px 24px; text-align: center; cursor: pointer;
+    transition: all .25s; position: relative;
+  }
+  .goal-card:hover { border-color: rgba(239,68,68,0.3); background: rgba(255,255,255,0.05); transform: translateY(-3px); }
+  .goal-card:active { transform: scale(0.97); }
+  .goal-card .gc-icon { font-size: 44px; margin-bottom: 16px; }
+  .goal-card h3 { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+  .goal-card p { font-size: 14px; color: #9ca3af; line-height: 1.5; }
+
+  /* ── FORM ELEMENTS ── */
+  .field { margin-bottom: 28px; }
+  .field label { display: block; font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 12px; }
+  .field label i { color: #ef4444; margin-right: 8px; }
+  .field-hint { font-size: 12px; color: #6b7280; margin-top: 6px; }
+
+  .slider-row { display: flex; align-items: center; gap: 16px; }
+  .slider-row input[type="range"] { flex: 1; }
+  .val-box {
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px; padding: 10px 16px; min-width: 140px; text-align: center;
+    font-size: 18px; font-weight: 700; color: #fff; font-family: 'Montserrat', sans-serif;
+  }
+  .val-box:focus { outline: none; border-color: #ef4444; }
+
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; outline: none; width: 100%;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 24px; height: 24px; background: #ef4444;
+    border-radius: 50%; cursor: pointer; box-shadow: 0 0 12px rgba(239,68,68,0.4);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 24px; height: 24px; background: #ef4444; border-radius: 50%; cursor: pointer; border: none;
+  }
+
+  .horizon-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+  .horizon-btn {
+    flex: 1; min-width: 70px; padding: 14px 12px; background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
+    color: #9ca3af; font-size: 15px; font-weight: 600; cursor: pointer;
+    text-align: center; transition: .2s; font-family: 'Montserrat', sans-serif;
+  }
+  .horizon-btn:hover { border-color: rgba(239,68,68,0.4); color: #fff; }
+  .horizon-btn.active { background: rgba(239,68,68,0.12); border-color: #ef4444; color: #ef4444; font-weight: 700; }
+
+  .currency-toggle { display: flex; gap: 8px; justify-content: center; margin-bottom: 28px; }
+  .cur-btn {
+    padding: 6px 18px; border-radius: 8px; font-size: 13px; font-weight: 700;
+    border: 1px solid rgba(255,255,255,0.1); background: transparent; color: #6b7280;
+    cursor: pointer; transition: .2s; font-family: 'Montserrat', sans-serif;
+  }
+  .cur-btn.active { background: rgba(239,68,68,0.12); border-color: #ef4444; color: #ef4444; }
+
+  /* ── BUTTONS ── */
+  .btn-calc {
+    display: block; width: 100%; background: #ef4444; color: #fff;
+    font-weight: 800; font-size: 18px; padding: 18px; border-radius: 12px;
+    border: none; cursor: pointer; transition: .2s; font-family: 'Montserrat', sans-serif;
+    margin-top: 8px;
+  }
+  .btn-calc:hover { background: #dc2626; transform: translateY(-2px); box-shadow: 0 10px 40px rgba(239,68,68,0.35); }
+  .btn-calc:active { transform: scale(0.98); }
+
+  .btn-back {
+    display: inline-flex; align-items: center; gap: 6px; color: #6b7280;
+    font-size: 14px; cursor: pointer; margin-bottom: 24px; transition: .2s;
+    background: none; border: none; font-family: 'Montserrat', sans-serif;
+  }
+  .btn-back:hover { color: #ef4444; }
+
+  .btn-cta {
+    display: inline-block; background: #ef4444; color: #fff;
+    font-weight: 800; font-size: 18px; padding: 18px 44px;
+    border-radius: 12px; text-decoration: none; transition: .2s;
+  }
+  .btn-cta:hover { background: #dc2626; transform: translateY(-2px); box-shadow: 0 10px 40px rgba(239,68,68,0.35); }
+
+  /* ── RESULTS ── */
+  .scenarios { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 32px; }
+  .sc-card {
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px; padding: 24px; transition: .2s;
+  }
+  .sc-card:hover { border-color: rgba(255,255,255,0.16); background: rgba(255,255,255,0.05); }
+  .sc-card.highlight { border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.04); box-shadow: 0 0 30px rgba(239,68,68,0.08); }
+  .sc-icon { font-size: 28px; margin-bottom: 10px; }
+  .sc-label { font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+  .sc-rate { font-size: 13px; color: #9ca3af; margin-bottom: 14px; }
+  .sc-amount { font-size: clamp(20px, 3vw, 28px); font-weight: 900; color: #fff; line-height: 1.1; }
+  .sc-detail { font-size: 14px; color: #9ca3af; margin-top: 6px; }
+  .sc-detail span { color: #ef4444; font-weight: 700; }
+  .sc-expand-btn { display:inline-flex;align-items:center;gap:4px;margin-top:12px;padding:6px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#9ca3af;font-size:12px;font-weight:600;cursor:pointer;transition:.2s;font-family:'Montserrat',sans-serif; }
+  .sc-expand-btn:hover { border-color:rgba(239,68,68,0.3);color:#fff; }
+  .sc-expand-btn i { font-size:10px;transition:transform .3s; }
+  .sc-expand-btn.open i { transform:rotate(180deg); }
+  .sc-expanded { max-height:0;overflow:hidden;transition:max-height .4s ease; }
+  .sc-expanded.open { max-height:1200px;margin-top:14px; }
+  .sc-ex-inner { border-top:1px solid rgba(255,255,255,0.06);padding-top:14px; }
+  .sc-how { font-size:13px;color:#9ca3af;line-height:1.6;margin-bottom:12px; }
+  .sc-how strong { color:#fff; }
+  .sc-pmc { display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px; }
+  .sc-pmc h4 { font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px; }
+  .sc-pmc .p h4 { color:#22c55e; } .sc-pmc .m h4 { color:#ef4444; }
+  .sc-pmc li { font-size:12px;color:#9ca3af;line-height:1.5;padding:2px 0;list-style:none; }
+  .sc-pmc .p li::before { content:'\2713 ';color:#22c55e;font-weight:700; }
+  .sc-pmc .m li::before { content:'\2717 ';color:#ef4444;font-weight:700; }
+  .sc-verd { font-size:13px;color:#fff;font-weight:600;font-style:italic; }
+  @media(max-width:640px){ .sc-pmc{grid-template-columns:1fr;} }
+
+  .chart-wrap {
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px; padding: 24px 20px; margin-bottom: 32px;
+  }
+  .chart-wrap h3 { font-size: 16px; margin-bottom: 16px; }
+  .chart-container { position: relative; height: 340px; touch-action: none; }
+
+  .inaction-block {
+    background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 16px; padding: 28px; text-align: center; margin-bottom: 32px;
+  }
+  .inaction-label { font-size: 13px; font-weight: 700; color: #ef4444; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+  .big-num { font-size: clamp(26px, 5vw, 44px); font-weight: 900; color: #ef4444; line-height: 1.1; }
+  .inaction-block p { color: #9ca3af; font-size: 15px; margin-top: 6px; }
+  .inaction-block p strong { color: #fff; }
+
+  .video-section {
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px; padding: 28px; text-align: center; margin-bottom: 32px;
+  }
+  .video-placeholder {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; aspect-ratio: 16/9; display: flex; align-items: center;
+    justify-content: center; flex-direction: column; gap: 10px; margin-top: 16px; cursor: pointer;
+  }
+  .play-btn { width: 56px; height: 56px; background: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .play-btn i { color: #fff; font-size: 20px; margin-left: 3px; }
+
+  .cta-section { text-align: center; padding: 32px 0; }
+  .cta-sub { font-size: 14px; color: #6b7280; margin-top: 12px; }
+
+  .disclaimer { text-align: center; padding: 16px 20px; font-size: 11px; color: #4b5563; border-top: 1px solid rgba(255,255,255,0.06); }
+
+  /* ── KNOW-HOW BLOCK ── */
+  .knowhow-block {
+    margin-top: 8px; margin-bottom: 28px;
+    border-top: 1px solid rgba(255,255,255,0.06); padding-top: 24px;
+  }
+  .knowhow-block label { display: block; font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 14px; text-align: center; }
+  .knowhow-btns { display: flex; gap: 12px; justify-content: center; }
+  .knowhow-btn {
+    flex: 1; max-width: 200px; padding: 14px 20px; background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+    color: #9ca3af; font-size: 15px; font-weight: 600; cursor: pointer;
+    text-align: center; transition: .2s; font-family: 'Montserrat', sans-serif;
+  }
+  .knowhow-btn:hover { border-color: rgba(239,68,68,0.4); color: #fff; }
+  .knowhow-btn.active { background: rgba(239,68,68,0.12); border-color: #ef4444; color: #ef4444; }
+  .knowhow-textarea {
+    display: none; width: 100%; margin-top: 14px; padding: 14px 16px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px; color: #fff; font-size: 14px; font-family: 'Montserrat', sans-serif;
+    resize: none; min-height: 60px; outline: none;
+  }
+  .knowhow-textarea::placeholder { color: #6b7280; }
+  .knowhow-textarea:focus { border-color: #ef4444; }
+  .knowhow-textarea.show { display: block; }
+
+  .results-insight {
+    background: rgba(239,68,68,0.06); border-left: 4px solid #ef4444;
+    border-radius: 0 12px 12px 0; padding: 16px 20px; margin-bottom: 24px;
+    font-size: 15px; line-height: 1.6;
+  }
+  .results-insight strong { color: #fff; }
+  .results-insight .user-plan { color: #ef4444; font-weight: 700; }
+
+  @media (max-width: 640px) {
+    .goal-cards { grid-template-columns: 1fr; gap: 12px; }
+    .goal-card { padding: 28px 20px; }
+    .scenarios { grid-template-columns: 1fr; }
+    .slider-row { flex-direction: column; align-items: stretch; }
+    .val-box { min-width: auto; }
+    .chart-container { height: 240px; }
+    .slide-inner { padding: 30px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Step indicator -->
+<div class="steps-bar">
+  <div class="step-dot current" id="dot1"></div>
+  <div class="step-line" id="line1"></div>
+  <div class="step-dot" id="dot2"></div>
+  <div class="step-line" id="line2"></div>
+  <div class="step-dot" id="dot3"></div>
+</div>
+
+<div class="slides-viewport">
+
+  <!-- ═══════ SLIDE 1: GOAL ═══════ -->
+  <div class="slide active" id="slide1">
+    <div class="slide-inner">
+      <div style="text-align:center;">
+        <div class="badge"><span class="badge-dot"></span> Бесплатный расчёт · 30 секунд</div>
+        <h1 style="font-size:clamp(26px,4.5vw,48px);font-weight:900;line-height:1.15;margin-bottom:16px;">
+          Посчитай свой <span class="accent">финансовый план</span> в&nbsp;DeFi
+        </h1>
+        <p style="color:#9ca3af;font-size:clamp(14px,2vw,18px);line-height:1.6;max-width:560px;margin:0 auto;">
+          Выбери цель — калькулятор покажет конкретные цифры для&nbsp;твоей ситуации
+        </p>
+      </div>
+      <div class="goal-cards">
+        <div class="goal-card" onclick="pickGoal('income')">
+          <div class="gc-icon">💰</div>
+          <h3>Пассивный доход</h3>
+          <p>Получать деньги каждый месяц, не трогая капитал</p>
+        </div>
+        <div class="goal-card" onclick="pickGoal('target')">
+          <div class="gc-icon">🎯</div>
+          <h3>Накопить на цель</h3>
+          <p>Собрать конкретную сумму к определённому сроку</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ SLIDE 2A: INCOME FORM ═══════ -->
+  <div class="slide" id="slide2a">
+    <div class="slide-inner">
+      <button class="btn-back" onclick="goBack(1)"><i class="fa-solid fa-arrow-left"></i> Назад</button>
+      <h2 style="font-size:clamp(20px,3.5vw,32px);margin-bottom:6px;">💰 Пассивный доход</h2>
+      <p style="color:#6b7280;font-size:14px;margin-bottom:28px;">Посчитаем когда выйдешь на желаемый доход</p>
+
+      <div class="currency-toggle">
+        <button class="cur-btn active" data-cur="$" onclick="setCurrency('$')">$ Доллары</button>
+        <button class="cur-btn" data-cur="₽" onclick="setCurrency('₽')">₽ Рубли</button>
+      </div>
+
+      <div class="field">
+        <label><i class="fa-solid fa-wallet"></i> Сумма на старте</label>
+        <div class="slider-row">
+          <input type="range" id="incStartSlider" min="500" max="100000" step="500" value="5000" oninput="syncField('incStart',this.value)"/>
+          <input type="text" class="val-box" id="incStartVal" value="$5 000" oninput="syncFromInput('incStart',this.value)"/>
+        </div>
+      </div>
+
+      <div class="field">
+        <label><i class="fa-solid fa-coins"></i> Хочу получать в месяц</label>
+        <div class="slider-row">
+          <input type="range" id="incGoalSlider" min="100" max="20000" step="100" value="500" oninput="syncField('incGoal',this.value)"/>
+          <input type="text" class="val-box" id="incGoalVal" value="$500" oninput="syncFromInput('incGoal',this.value)"/>
+        </div>
+        <div class="field-hint">Желаемый пассивный доход</div>
+      </div>
+
+      <div class="field">
+        <label><i class="fa-solid fa-arrow-trend-up"></i> Могу добавлять в месяц</label>
+        <div class="slider-row">
+          <input type="range" id="incAddSlider" min="0" max="10000" step="100" value="300" oninput="syncField('incAdd',this.value)"/>
+          <input type="text" class="val-box" id="incAddVal" value="$300" oninput="syncFromInput('incAdd',this.value)"/>
+        </div>
+        <div class="field-hint">Регулярные пополнения (можно 0)</div>
+      </div>
+
+      <!-- Know-how question -->
+      <div class="knowhow-block">
+        <label>Ты знаешь как к этому прийти?</label>
+        <div class="knowhow-btns">
+          <button class="knowhow-btn" onclick="setKnowhow('yes', this)">✅ Да, есть план</button>
+          <button class="knowhow-btn" onclick="setKnowhow('no', this)">🤷 Нет</button>
+        </div>
+        <textarea class="knowhow-textarea" id="knowhowTextA" placeholder="Коротко опиши свой план (вклад, крипта, акции...)"></textarea>
+      </div>
+
+      <button class="btn-calc" onclick="calcIncome()"><i class="fa-solid fa-calculator" style="margin-right:8px;"></i> Посчитать</button>
+    </div>
+  </div>
+
+  <!-- ═══════ SLIDE 2B: TARGET FORM ═══════ -->
+  <div class="slide" id="slide2b">
+    <div class="slide-inner">
+      <button class="btn-back" onclick="goBack(1)"><i class="fa-solid fa-arrow-left"></i> Назад</button>
+      <h2 style="font-size:clamp(20px,3.5vw,32px);margin-bottom:6px;">🎯 Накопить на цель</h2>
+      <p style="color:#6b7280;font-size:14px;margin-bottom:28px;">Посчитаем сколько нужно откладывать</p>
+
+      <div class="currency-toggle">
+        <button class="cur-btn active" data-cur="$" onclick="setCurrency('$')">$ Доллары</button>
+        <button class="cur-btn" data-cur="₽" onclick="setCurrency('₽')">₽ Рубли</button>
+      </div>
+
+      <div class="field">
+        <label><i class="fa-solid fa-wallet"></i> Сумма на старте</label>
+        <div class="slider-row">
+          <input type="range" id="tgtStartSlider" min="500" max="100000" step="500" value="5000" oninput="syncField('tgtStart',this.value)"/>
+          <input type="text" class="val-box" id="tgtStartVal" value="$5 000" oninput="syncFromInput('tgtStart',this.value)"/>
+        </div>
+      </div>
+
+      <div class="field">
+        <label><i class="fa-solid fa-bullseye"></i> Хочу накопить</label>
+        <div class="slider-row">
+          <input type="range" id="tgtGoalSlider" min="5000" max="500000" step="5000" value="50000" oninput="syncField('tgtGoal',this.value)"/>
+          <input type="text" class="val-box" id="tgtGoalVal" value="$50 000" oninput="syncFromInput('tgtGoal',this.value)"/>
+        </div>
+      </div>
+
+      <div class="field">
+        <label><i class="fa-solid fa-clock"></i> К какому сроку</label>
+        <div class="horizon-btns">
+          <button class="horizon-btn" data-y="1" onclick="setHorizon(1)">1 год</button>
+          <button class="horizon-btn active" data-y="3" onclick="setHorizon(3)">3 года</button>
+          <button class="horizon-btn" data-y="5" onclick="setHorizon(5)">5 лет</button>
+          <button class="horizon-btn" data-y="10" onclick="setHorizon(10)">10 лет</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label><i class="fa-solid fa-arrow-trend-up"></i> Могу добавлять в месяц</label>
+        <div class="slider-row">
+          <input type="range" id="tgtAddSlider" min="0" max="10000" step="100" value="300" oninput="syncField('tgtAdd',this.value)"/>
+          <input type="text" class="val-box" id="tgtAddVal" value="$300" oninput="syncFromInput('tgtAdd',this.value)"/>
+        </div>
+      </div>
+
+      <!-- Know-how question -->
+      <div class="knowhow-block">
+        <label>Ты знаешь как к этому прийти?</label>
+        <div class="knowhow-btns">
+          <button class="knowhow-btn" onclick="setKnowhow('yes', this)">✅ Да, есть план</button>
+          <button class="knowhow-btn" onclick="setKnowhow('no', this)">🤷 Нет</button>
+        </div>
+        <textarea class="knowhow-textarea" id="knowhowTextB" placeholder="Коротко опиши свой план (вклад, крипта, акции...)"></textarea>
+      </div>
+
+      <button class="btn-calc" onclick="calcTarget()"><i class="fa-solid fa-calculator" style="margin-right:8px;"></i> Посчитать</button>
+    </div>
+  </div>
+
+  <!-- ═══════ SLIDE 3: RESULTS ═══════ -->
+  <div class="slide" id="slide3">
+    <div class="slide-inner top-align">
+      <button class="btn-back" onclick="goBack(2)" style="margin-top:48px;"><i class="fa-solid fa-arrow-left"></i> Изменить данные</button>
+
+      <div class="results-insight" id="resultsInsight" style="display:none;"></div>
+
+      <h2 id="resultsTitle" style="font-size:clamp(20px,3.5vw,32px);margin-bottom:6px;"></h2>
+      <p id="resultsSubtitle" style="color:#6b7280;font-size:14px;margin-bottom:28px;"></p>
+
+      <div class="scenarios">
+        <div class="sc-card">
+          <div class="sc-icon">🏦</div>
+          <div class="sc-label">Банковский вклад</div>
+          <div class="sc-rate">~8% годовых в рублях (среднее за 10 лет)</div>
+          <div class="sc-amount" id="sc1-amount"></div>
+          <div class="sc-detail" id="sc1-detail"></div>
+        </div>
+        <div class="sc-card">
+          <div class="sc-icon">🟢</div>
+          <div class="sc-label">Стейбл-пулы DeFi</div>
+          <div class="sc-rate">5–20% годовых в $</div>
+          <div class="sc-amount" id="sc2-amount"></div>
+          <div class="sc-detail" id="sc2-detail"></div>
+        </div>
+        <div class="sc-card">
+          <div class="sc-icon">📈</div>
+          <div class="sc-label">Криптопортфель</div>
+          <div class="sc-rate">~30% (±волатильность)</div>
+          <div class="sc-amount" id="sc3-amount"></div>
+          <div class="sc-detail" id="sc3-detail"></div>
+        </div>
+        <div class="sc-card highlight">
+          <div class="sc-icon">⚡</div>
+          <div class="sc-label">Криптопортфель + DeFi</div>
+          <div class="sc-rate">25–40% совокупно</div>
+          <div class="sc-amount" id="sc4-amount"></div>
+          <div class="sc-detail" id="sc4-detail"></div>
+        </div>
+      </div>
+
+      <div class="chart-wrap">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <h3 style="margin:0;"><i class="fa-solid fa-chart-line accent" style="margin-right:8px;"></i> <span id="chartTitle">Рост капитала</span></h3>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <button onclick="if(chart)chart.zoom(1.3)" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#9ca3af;width:30px;height:30px;cursor:pointer;font-size:16px;font-family:Montserrat;display:flex;align-items:center;justify-content:center;">+</button>
+            <button onclick="if(chart)chart.zoom(0.7)" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#9ca3af;width:30px;height:30px;cursor:pointer;font-size:16px;font-family:Montserrat;display:flex;align-items:center;justify-content:center;">−</button>
+            <button onclick="if(chart)chart.resetZoom()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#9ca3af;height:30px;padding:0 10px;cursor:pointer;font-size:11px;font-family:Montserrat;">Сброс</button>
+          </div>
+        </div>
+        <div class="chart-container"><canvas id="growthChart"></canvas></div>
+        <div style="text-align:center;margin-top:8px;font-size:11px;color:#6b7280;">
+          <i class="fa-solid fa-hand-pointer" style="margin-right:4px;"></i> Скролл / пинч для масштабирования · Перетаскивание для навигации
+        </div>
+      </div>
+
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:32px;margin-bottom:32px;">
+        <h3 style="font-size:clamp(18px,3vw,24px);margin-bottom:6px;">⚡ <span id="fastpath-title">Крипто + DeFi</span></h3>
+        <p style="color:#ef4444;font-size:clamp(20px,3.5vw,32px);font-weight:900;margin-bottom:16px;" id="fastpath-time"></p>
+        <p style="color:#d4d4d4;font-size:15px;line-height:1.7;margin-bottom:0;">
+          Самый быстрый путь из четырёх. Требует времени, чтобы разобраться — стратегия, структура портфеля, инструменты. Но это <strong style="color:#fff;">навык</strong>: разобрался один раз — работает годами.
+        </p>
+      </div>
+
+      <div style="text-align:center;padding:28px 0 40px;">
+        <p style="color:#d4d4d4;font-size:16px;line-height:1.7;max-width:520px;margin:0 auto 24px;">
+          Я этот навык сформировал, упаковал в понятную систему и сделал всё, чтобы твой результат был достижим.
+        </p>
+        <p style="color:#fff;font-size:17px;font-weight:700;margin-bottom:28px;">
+          Хочешь его освоить? Напиши мне — расскажу подробнее.
+        </p>
+        <a href="https://t.me/smukhomedzyanov" class="btn-cta" target="_blank">
+          <i class="fa-brands fa-telegram" style="margin-right:8px;"></i> Написать →
+        </a>
+        <div class="cta-sub">Отвечу лично · Без обязательств</div>
+      </div>
+
+      <div class="disclaimer">
+        Калькулятор показывает примерные расчёты на основе исторической доходности. Не является гарантией. Инвестиции в криптовалюты связаны с рисками.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── STATE ──
+let currency = '$';
+let mode = null;
+let horizon = 3;
+let chart = null;
+let pendingChart = null;
+let currentSlide = 1;
+let knowhow = null; // 'yes' | 'no'
+let knowhowText = '';
+
+const RATES = { deposit: 0.08, stable: 0.15, crypto: 0.30, sysLo: 0.25, sysHi: 0.40 };
+const fields = {};
+
+// ── SLIDE NAVIGATION ──
+function goToSlide(n, slideId) {
+  const current = document.querySelector('.slide.active');
+  const next = document.getElementById(slideId);
+
+  if (n > currentSlide) {
+    // Forward
+    current.classList.remove('active');
+    current.classList.add('exit-left');
+    next.classList.remove('exit-right', 'exit-left');
+    next.classList.add('active');
+  } else {
+    // Back
+    current.classList.remove('active');
+    current.classList.add('exit-right');
+    next.classList.remove('exit-left', 'exit-right');
+    next.classList.add('active');
+  }
+
+  setTimeout(() => {
+    current.classList.remove('exit-left', 'exit-right');
+    if (pendingChart) { pendingChart(); pendingChart = null; }
+  }, 550);
+
+  currentSlide = n;
+  next.scrollTop = 0;
+  updateDots(n);
+}
+
+function updateDots(step) {
+  for (let i = 1; i <= 3; i++) {
+    const dot = document.getElementById('dot' + i);
+    dot.className = 'step-dot';
+    if (i < step) dot.classList.add('done');
+    if (i === step) dot.classList.add('current');
+  }
+  for (let i = 1; i <= 2; i++) {
+    const line = document.getElementById('line' + i);
+    line.className = 'step-line';
+    if (i < step) line.classList.add('done');
+  }
+}
+
+function goBack(toStep) {
+  if (toStep === 1) goToSlide(1, 'slide1');
+  else if (toStep === 2) goToSlide(2, mode === 'income' ? 'slide2a' : 'slide2b');
+}
+
+// ── FORMAT ──
+function fmt(n) {
+  if (n >= 1000000) return currency + (n/1e6).toFixed(1).replace('.0','') + ' млн';
+  return currency + Math.round(n).toLocaleString('ru-RU').replace(/,/g, ' ');
+}
+function fmtMonth(n) { return fmt(n) + '/мес'; }
+function yWord(y) { return y === 1 ? 'год' : y < 5 ? 'года' : 'лет'; }
+
+// ── FIELD SYNC ──
+function syncField(id, v) {
+  const n = Number(v);
+  fields[id] = n;
+  document.getElementById(id + 'Val').value = fmt(n);
+}
+function syncFromInput(id, raw) {
+  const n = Number(raw.replace(/[^0-9]/g, ''));
+  if (n >= 0) {
+    fields[id] = n;
+    const slider = document.getElementById(id + 'Slider');
+    if (slider) slider.value = Math.min(n, Number(slider.max));
+  }
+}
+function setCurrency(c) {
+  currency = c;
+  document.querySelectorAll('.cur-btn').forEach(b => b.classList.toggle('active', b.dataset.cur === c));
+  Object.keys(fields).forEach(id => {
+    const el = document.getElementById(id + 'Val');
+    if (el) el.value = fmt(fields[id]);
+  });
+}
+function setHorizon(y) {
+  horizon = y;
+  document.querySelectorAll('.horizon-btn').forEach(b => b.classList.toggle('active', Number(b.dataset.y) === y));
+}
+
+// ── KNOWHOW ──
+function setKnowhow(val, btn) {
+  knowhow = val;
+  const block = btn.closest('.knowhow-block');
+  block.querySelectorAll('.knowhow-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const ta = block.querySelector('.knowhow-textarea');
+  if (val === 'yes') {
+    ta.classList.add('show');
+    ta.focus();
+  } else {
+    ta.classList.remove('show');
+  }
+}
+
+function getKnowhowText() {
+  const ta = document.getElementById(mode === 'income' ? 'knowhowTextA' : 'knowhowTextB');
+  return ta ? ta.value.trim() : '';
+}
+
+function renderInsight() {
+  const el = document.getElementById('resultsInsight');
+  if (!knowhow) { el.style.display = 'none'; return; }
+
+  const userPlan = getKnowhowText();
+  let html = '';
+
+  if (knowhow === 'no') {
+    html = 'Отлично, что ты это осознаёшь. Ниже — <strong>4 стратегии</strong> с конкретными цифрами для твоей ситуации. Посмотри разницу.';
+  } else if (userPlan) {
+    html = 'Отлично, у тебя есть план. Посмотри ниже — как он выглядит в&nbsp;цифрах рядом с&nbsp;другими стратегиями.';
+  } else {
+    html = 'Отлично, у тебя есть план. Посмотри ниже — как он выглядит в&nbsp;цифрах рядом с&nbsp;другими стратегиями.';
+  }
+
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+
+// ── GOAL PICK ──
+function pickGoal(g) {
+  mode = g;
+  if (g === 'income') {
+    fields.incStart = fields.incStart || 5000;
+    fields.incGoal = fields.incGoal || 500;
+    if (fields.incAdd === undefined) fields.incAdd = 300;
+    goToSlide(2, 'slide2a');
+  } else {
+    fields.tgtStart = fields.tgtStart || 5000;
+    fields.tgtGoal = fields.tgtGoal || 50000;
+    if (fields.tgtAdd === undefined) fields.tgtAdd = 300;
+    goToSlide(2, 'slide2b');
+  }
+}
+
+// ── CALC HELPERS ──
+function growCapital(rate, months, start, monthly) {
+  const r = rate/12; let cap = start; const data = [cap];
+  for (let i = 1; i <= months; i++) { cap = cap*(1+r)+monthly; data.push(cap); }
+  return data;
+}
+
+function monthsToIncome(rate, targetMonthly, start, monthly) {
+  const r = rate/12; let cap = start;
+  for (let i = 1; i <= 360; i++) {
+    cap = cap*(1+r)+monthly;
+    if (cap * rate/12 >= targetMonthly) return i;
+  }
+  return null;
+}
+
+function monthlyNeeded(rate, months, start, targetCap) {
+  const r = rate/12; const comp = Math.pow(1+r, months);
+  const fromStart = start * comp;
+  if (fromStart >= targetCap) return 0;
+  return (targetCap - fromStart) / ((comp-1)/r);
+}
+
+function fmtTime(m) {
+  if (!m) return 'больше 30 лет';
+  const y = Math.floor(m/12), mo = m%12;
+  if (y === 0) return mo + ' мес';
+  if (mo === 0) return y + ' ' + yWord(y);
+  return y + ' ' + yWord(y) + ' ' + mo + ' мес';
+}
+
+function makeDs(label, data, color, w) {
+  return { label, data, borderColor: color, borderWidth: w||2, tension: 0.3, fill: false, pointRadius: 0 };
+}
+
+function renderChart(datasets, labels, goalLine, goalLabel, extraAnnotations) {
+  if (chart) chart.destroy();
+  const annotations = {};
+  if (goalLine) {
+    annotations.goal = {
+      type:'line', yMin:goalLine, yMax:goalLine,
+      borderColor:'rgba(239,68,68,0.5)', borderWidth:2, borderDash:[8,4],
+      label:{ display:true, content:goalLabel||'', position:'end',
+        backgroundColor:'rgba(239,68,68,0.8)', color:'#fff',
+        font:{family:'Montserrat',size:11,weight:'700'}, padding:4, borderRadius:4 }
+    };
+  }
+  if (extraAnnotations) Object.assign(annotations, extraAnnotations);
+  const ann = Object.keys(annotations).length ? { annotations } : {};
+
+  chart = new Chart(document.getElementById('growthChart'), {
+    type:'line', data:{labels, datasets},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{color:'#9ca3af',font:{family:'Montserrat',size:11},usePointStyle:true,padding:12}},
+        tooltip:{
+          backgroundColor:'rgba(17,17,17,0.95)',titleColor:'#fff',bodyColor:'#d4d4d4',
+          titleFont:{family:'Montserrat',weight:'700'},bodyFont:{family:'Montserrat'},
+          padding:10,borderColor:'rgba(255,255,255,0.1)',borderWidth:1,
+          callbacks:{
+            title:i=>{
+              const m=i[0].dataIndex;
+              if(m===0) return 'Старт';
+              const y=Math.floor(m/12), mo=m%12;
+              if(y>0 && mo>0) return y+' г. '+mo+' мес';
+              if(y>0) return y+' '+yWord(y);
+              return mo+' мес';
+            },
+            label:i=>' '+i.dataset.label+': '+fmt(i.raw)
+          }
+        },
+        annotation:ann,
+        zoom:{
+          pan:{ enabled:true, mode:'x', threshold:5 },
+          zoom:{
+            wheel:{ enabled:true, speed:0.05 },
+            pinch:{ enabled:true },
+            mode:'x',
+          },
+          limits:{ x:{min:0} }
+        }
+      },
+      scales:{
+        x:{
+          type:'linear',
+          grid:{color:'rgba(255,255,255,0.04)'},
+          ticks:{
+            color:'#6b7280',
+            font:{family:'Montserrat',size:10},
+            stepSize:12,
+            callback:v=>{
+              if(v===0) return 'Старт';
+              if(v%12===0) return (v/12)+' г.';
+              return '';
+            }
+          },
+          min:0
+        },
+        y:{
+          grid:{color:'rgba(255,255,255,0.04)'},
+          ticks:{
+            color:'#6b7280',
+            font:{family:'Montserrat',size:10},
+            callback:v=>{
+              if(v>=1e6) return currency+(v/1e6).toFixed(1)+'M';
+              if(v>=1000) return currency+(v/1000).toFixed(0)+'K';
+              return currency+v;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+// ── CALC INCOME ──
+function calcIncome() {
+  const start = fields.incStart||5000, goalM = fields.incGoal||500, add = fields.incAdd||300;
+
+  const m1 = monthsToIncome(RATES.deposit, goalM, start, add);
+  const m2 = monthsToIncome(RATES.stable, goalM, start, add);
+  const m3 = monthsToIncome(RATES.crypto, goalM, start, add);
+  const m4lo = monthsToIncome(RATES.sysLo, goalM, start, add);
+  const m4hi = monthsToIncome(RATES.sysHi, goalM, start, add);
+
+  const capNeeded = r => goalM*12/r;
+
+  document.getElementById('sc1-amount').textContent = fmtTime(m1);
+  document.getElementById('sc1-detail').innerHTML = 'Нужен капитал <span>'+fmt(capNeeded(RATES.deposit))+'</span>';
+
+  document.getElementById('sc2-amount').textContent = fmtTime(m2);
+  document.getElementById('sc2-detail').innerHTML = 'Нужен капитал <span>'+fmt(capNeeded(RATES.stable))+'</span>';
+
+  document.getElementById('sc3-amount').textContent = fmtTime(m3);
+  document.getElementById('sc3-detail').innerHTML = 'Нужен капитал <span>'+fmt(capNeeded(RATES.crypto))+'</span>';
+
+  document.getElementById('sc4-amount').textContent = fmtTime(m4hi)+' – '+fmtTime(m4lo);
+  document.getElementById('sc4-detail').innerHTML = 'Нужен капитал <span>'+fmt(capNeeded(RATES.sysHi))+' – '+fmt(capNeeded(RATES.sysLo))+'</span>';
+
+  document.getElementById('resultsTitle').innerHTML = 'Когда ты выйдешь на <span class="accent">'+fmtMonth(goalM)+'</span>';
+  document.getElementById('resultsSubtitle').textContent = 'Время достижения цели при разных стратегиях';
+
+  // Chart: cap at stables time + 20% padding so all lines are visible
+  const maxM = Math.min(Math.round((m2||120)*1.2), 240);
+  const labels = Array.from({length:maxM+1},(_,i)=>i);
+  const goalCap = capNeeded(RATES.stable);
+
+  document.getElementById('chartTitle').textContent = 'Рост капитала';
+  pendingChart = () => renderChart([
+    makeDs('🏦 Депозит',growCapital(RATES.deposit,maxM,start,add),'#6b7280'),
+    makeDs('🟢 Стейблы',growCapital(RATES.stable,maxM,start,add),'#22c55e'),
+    makeDs('📈 Крипто',growCapital(RATES.crypto,maxM,start,add),'#3b82f6'),
+    makeDs('⚡ Крипто + DeFi',growCapital(RATES.sysHi,maxM,start,add),'#ef4444',3),
+  ], labels, null, null);
+
+  document.getElementById('fastpath-time').textContent = fmtTime(m4hi) + ' до цели';
+  document.getElementById('fastpath-title').textContent = 'Крипто + DeFi — ' + fmtMonth(goalM);
+
+  renderInsight();
+  goToSlide(3, 'slide3');
+}
+
+// ── CALC TARGET ──
+function calcTarget() {
+  const start = fields.tgtStart||5000, goal = fields.tgtGoal||50000, add = fields.tgtAdd||300;
+  const months = horizon*12;
+
+  const f1 = growCapital(RATES.deposit,months,start,add);
+  const f2 = growCapital(RATES.stable,months,start,add);
+  const f3 = growCapital(RATES.crypto,months,start,add);
+  const f4hi = growCapital(RATES.sysHi,months,start,add);
+  const f4lo = growCapital(RATES.sysLo,months,start,add);
+
+  const fin1=f1[months],fin2=f2[months],fin3=f3[months],fin4hi=f4hi[months],fin4lo=f4lo[months];
+
+  const mn1=monthlyNeeded(RATES.deposit,months,start,goal);
+  const mn2=monthlyNeeded(RATES.stable,months,start,goal);
+  const mn3=monthlyNeeded(RATES.crypto,months,start,goal);
+  const mn4hi=monthlyNeeded(RATES.sysHi,months,start,goal);
+  const mn4lo=monthlyNeeded(RATES.sysLo,months,start,goal);
+
+  const cardDetail=(fin,mn)=> fin>=goal
+    ? '<span style="color:#22c55e;">✅ Цель достигнута</span>'
+    : 'Нужно <span>'+fmtMonth(mn)+'</span> для цели';
+
+  document.getElementById('sc1-amount').textContent = fmt(fin1);
+  document.getElementById('sc1-detail').innerHTML = cardDetail(fin1,mn1);
+
+  document.getElementById('sc2-amount').textContent = fmt(fin2);
+  document.getElementById('sc2-detail').innerHTML = cardDetail(fin2,mn2);
+
+  document.getElementById('sc3-amount').textContent = fmt(fin3);
+  document.getElementById('sc3-detail').innerHTML = cardDetail(fin3,mn3);
+
+  document.getElementById('sc4-amount').textContent = fmt(fin4lo)+' – '+fmt(fin4hi);
+  document.getElementById('sc4-detail').innerHTML = fin4hi>=goal
+    ? '<span style="color:#22c55e;">✅ Цель достигнута</span>'
+    : 'Нужно <span>'+fmtMonth(mn4hi)+' – '+fmtMonth(mn4lo)+'</span>';
+
+  const yw=yWord(horizon);
+  document.getElementById('resultsTitle').innerHTML='Твой капитал через <span class="accent">'+horizon+' '+yw+'</span>';
+  document.getElementById('resultsSubtitle').textContent='Цель: '+fmt(goal)+' · Пополнение '+fmtMonth(add);
+
+  document.getElementById('chartTitle').textContent='Путь к '+fmt(goal);
+  pendingChart = () => renderChart([
+    makeDs('🏦 Депозит',f1,'#6b7280'),
+    makeDs('🟢 Стейблы',f2,'#22c55e'),
+    makeDs('📈 Крипто',f3,'#3b82f6'),
+    makeDs('⚡ Крипто + DeFi',f4hi,'#ef4444',3),
+  ], Array.from({length:months+1},(_,i)=>i), goal, 'Цель: '+fmt(goal));
+
+  document.getElementById('fastpath-title').textContent = 'Крипто + DeFi — ' + fmt(goal);
+  if (fin4hi >= goal) {
+    document.getElementById('fastpath-time').textContent = 'Цель достигнута за ' + horizon + ' ' + yw;
+  } else {
+    document.getElementById('fastpath-time').textContent = 'Нужно ' + fmtMonth(mn4hi) + ' для цели';
+  }
+
+  renderInsight();
+  goToSlide(3, 'slide3');
+}
+
+function toggleExpand(btn) {
+  const isOpen = btn.classList.toggle('open');
+  btn.nextElementSibling.classList.toggle('open');
+  btn.innerHTML = (isOpen ? 'Скрыть' : 'Подробнее') + ' <i class="fa-solid fa-chevron-down"></i>';
+}
+
+(function(){
+  const cards = document.querySelectorAll('.scenarios .sc-card');
+  const info = [
+    { how:'Кладёшь деньги на вклад — банк платит фиксированный процент. Деньги застрахованы до 1,4\u00a0млн\u00a0₽. Среднегодовая ставка за последние 10 лет — <strong>~8%</strong> (данные ЦБ РФ, 2015–2024).',
+      pros:['Привычно и понятно','Страховка от государства до 1,4 млн ₽','Нулевой порог входа'],
+      cons:['Доход в рублях — инфляция съедает 50–80%','Реальная доходность за вычетом инфляции ~0%','Банк зарабатывает на твоих деньгах в 3× больше, чем платит тебе'],
+      verdict:'Не теряешь — но и не зарабатываешь. Стоишь на месте.' },
+    { how:'Кладёшь <strong>стейблкоины</strong> (цифровые доллары) в пул ликвидности. Люди торгуют — ты получаешь комиссию. Деньги на твоём кошельке, не в банке.',
+      pros:['Доход 5–20% в долларах — защита от девальвации рубля','Деньги всегда на твоём кошельке, не у банка','Можно начать с $10','Не зависит от роста или падения крипты'],
+      cons:['Нужно научиться работать со стейблкоинами и кошельком','Нужно находить проверенные пулы','Нужно понимать работу DeFi и риски смарт-контрактов','Доходность плавает — не фиксированная'],
+      verdict:'Первая ступень. Пассивный доход в долларах с любой суммой.' },
+    { how:'Покупаешь <strong>BTC, ETH</strong> и другие активы. Держишь на горизонте 3–5 лет. Рынок растёт — портфель растёт. Но нужно чётко понимать <strong>почему</strong> и <strong>какие именно</strong> активы ты покупаешь.',
+      pros:['Самая высокая потенциальная доходность на дистанции','BlackRock, Fidelity, институционалы заходят — рынок взрослеет','Защита от инфляции и девальвации'],
+      cons:['Может упасть на 50% за месяц — доходность зависит от роста рынка','Без стратегии — это казино: нужно знать зачем, что и когда покупаешь','Нужно понимать логику ребалансировки портфеля','Эмоции: страх при падении, жадность на росте, паника при новостях','Недостаточно просто купить — нужно понимать почему рынок растёт'],
+      verdict:'Большой потенциал, но без стратегии — просто ставка. Нужно знать зачем, во что и что делать при падении.' },
+    { how:'Криптопортфель <strong>растёт</strong> + ты используешь активы в DeFi для <strong>дополнительного дохода сверху</strong>. Самая эффективная комбинация: активы работают в двух направлениях одновременно.',
+      extra:'<strong>Что нужно для этой стратегии:</strong><br>1. <strong>Стратегия</strong> — зачем инвестируешь, во что, что делать при падении<br>2. <strong>Структура портфеля</strong> — какие активы, в каких пропорциях, как использовать в DeFi<br>3. <strong>Окружение</strong> — люди, которые делают то же самое, обмен информацией',
+      pros:['Портфель растёт значительно сильнее — активы работают в двух направлениях','Сложный процент на сложный процент','Системный подход снижает риски','Самая эффективная стратегия из четырёх'],
+      cons:['Нужно владеть стратегией и структурой портфеля','Требуется дисциплина для регулярного выполнения','Нужны знания — куда и зачем ты инвестируешь','Требует начальных вложений и времени на изучение'],
+      verdict:'Самая выгодная и эффективная стратегия. Активы растут и работают одновременно.' }
+  ];
+  cards.forEach((card, i) => {
+    const d = info[i]; if(!d) return;
+    const btn = document.createElement('button');
+    btn.className = 'sc-expand-btn';
+    btn.innerHTML = 'Подробнее <i class="fa-solid fa-chevron-down"></i>';
+    btn.onclick = function(){ toggleExpand(this); };
+    const exp = document.createElement('div');
+    exp.className = 'sc-expanded';
+    let h = '<div class="sc-ex-inner"><div class="sc-how">' + d.how + '</div>';
+    if(d.extra) h += '<div class="sc-how" style="margin-bottom:8px">' + d.extra + '</div>';
+    h += '<div class="sc-pmc"><div class="p"><h4>Плюсы</h4><ul>' + d.pros.map(x=>'<li>'+x+'</li>').join('') + '</ul></div>';
+    h += '<div class="m"><h4>Минусы</h4><ul>' + d.cons.map(x=>'<li>'+x+'</li>').join('') + '</ul></div></div>';
+    h += '<div class="sc-verd">«' + d.verdict + '»</div></div>';
+    exp.innerHTML = h;
+    card.appendChild(btn);
+    card.appendChild(exp);
+  });
+})();
+</script>
+</body>
+</html>
