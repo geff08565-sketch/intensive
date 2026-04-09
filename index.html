@@ -228,6 +228,26 @@ nav {
 }
 .play-btn i { color: #fff; font-size: 24px; margin-left: 4px; }
 .video-label { color: rgba(255,255,255,0.4); font-size: 13px; }
+.hero-video-wrap {
+  max-width: 640px;
+  margin-bottom: 44px;
+}
+.hero-video-frame {
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.hero-video {
+  width: 100%;
+  display: block;
+  background: #000;
+}
+.hero-video-caption {
+  font-size: 13px;
+  color: rgba(255,255,255,0.45);
+  margin-top: 10px;
+}
 
 /* ─── META FACTS ─── */
 .meta-facts {
@@ -602,9 +622,13 @@ nav {
     </p>
 
     <!-- Video -->
-    <div class="video-box" style="margin-bottom:44px;">
-      <div class="play-btn"><i class="fa-solid fa-play"></i></div>
-      <span class="video-label">15-секундная нарезка уроков интенсива</span>
+    <div class="hero-video-wrap">
+      <div class="hero-video-frame">
+        <video class="hero-video" controls playsinline preload="metadata">
+          <source src="hero-landing-video.mp4" type="video/mp4">
+        </video>
+      </div>
+      <p class="hero-video-caption">Короткая нарезка уроков интенсива</p>
     </div>
 
     <a href="https://lk.yourcashflow.ru" class="btn-primary btn-primary-lg" target="_blank">
