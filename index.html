@@ -201,6 +201,91 @@ nav {
   margin-top: 12px;
 }
 
+body.modal-open {
+  overflow: hidden;
+}
+.payment-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: rgba(0,0,0,0.78);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.payment-modal.is-open {
+  display: flex;
+}
+.payment-modal-dialog {
+  width: min(760px, 100%);
+  max-height: 90vh;
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 12px;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.45);
+  overflow: auto;
+}
+.payment-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #222;
+}
+.payment-modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+}
+.payment-modal-close {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid #333;
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+.payment-modal-close:hover {
+  border-color: #FA660F;
+  color: #FA660F;
+}
+.payment-modal-body {
+  padding: 20px;
+}
+.payment-widget-shell {
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.payment-widget-shell iframe {
+  display: block;
+  width: 100% !important;
+  border: 0;
+}
+.payment-modal-sub {
+  font-size: 13px;
+  color: rgba(255,255,255,0.45);
+  margin-top: 12px;
+  text-align: center;
+}
+@media (max-width: 640px) {
+  .payment-modal {
+    padding: 12px;
+  }
+  .payment-modal-head,
+  .payment-modal-body {
+    padding: 14px;
+  }
+  .payment-modal-title {
+    font-size: 14px;
+  }
+}
+
 /* ─── VIDEO BOX ─── */
 .video-box {
   background: #111;
@@ -631,7 +716,7 @@ nav {
       <p class="hero-video-caption">Короткая нарезка уроков интенсива</p>
     </div>
 
-    <a href="https://lk.yourcashflow.ru" class="btn-primary btn-primary-lg" target="_blank">
+    <a href="#price-offer" class="btn-primary btn-primary-lg">
       <span style="text-decoration:line-through;opacity:.5;font-size:14px;font-weight:400;">21&nbsp;950&nbsp;₽</span> Получить доступ за 1&nbsp;490&nbsp;₽ →
     </a>
     <p class="btn-sub">Доступ на 1 месяц · Гарантия возврата за 3 урока</p>
@@ -955,7 +1040,7 @@ nav {
     </div>
 
     <div style="text-align:center;">
-      <a href="https://lk.yourcashflow.ru" class="btn-primary btn-primary-lg" target="_blank">
+      <a href="#price-offer" class="btn-primary btn-primary-lg">
         <span style="text-decoration:line-through;opacity:.5;font-size:14px;font-weight:400;">21&nbsp;950&nbsp;₽</span> Получить доступ за 1&nbsp;490&nbsp;₽ →
       </a>
       <p class="btn-sub">Доступ на 1 месяц · Гарантия возврата за 3 урока</p>
@@ -1501,7 +1586,7 @@ nav {
 <!-- ═══════════════════════════════════════
      ЦЕНА / ФИНАЛЬНАЯ CTA — DARK SOFT
 ════════════════════════════════════════ -->
-<section class="section section-dark-soft">
+<section class="section section-dark-soft" id="price-offer">
   <div class="container" style="text-align:center;">
 
     <p class="section-label" style="text-align:center;">Цена</p>
@@ -1552,9 +1637,9 @@ nav {
 
     </div>
 
-    <a href="https://lk.yourcashflow.ru" class="btn-primary btn-primary-lg" target="_blank" style="font-size:20px; padding:18px 48px;">
+    <button type="button" class="btn-primary btn-primary-lg" onclick="openPaymentModal()" style="font-size:20px; padding:18px 48px;">
       <span style="text-decoration:line-through;opacity:.45;font-size:14px;font-weight:400;">21&nbsp;950&nbsp;₽</span> Получить доступ за 1&nbsp;490&nbsp;₽ →
-    </a>
+    </button>
     <p class="btn-sub">Доступ на 1 месяц · Гарантия возврата за 3 урока без вопросов</p>
 
   </div>
@@ -1633,6 +1718,19 @@ nav {
 
 </footer>
 
+<div class="payment-modal" id="paymentModal" aria-hidden="true" onclick="if (event.target === this) closePaymentModal()">
+  <div class="payment-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="paymentModalTitle">
+    <div class="payment-modal-head">
+      <div class="payment-modal-title" id="paymentModalTitle">Оплата интенсива «DeFi с нуля»</div>
+      <button type="button" class="payment-modal-close" onclick="closePaymentModal()" aria-label="Закрыть">×</button>
+    </div>
+    <div class="payment-modal-body">
+      <div class="payment-widget-shell" id="paymentWidgetShell">
+        <script id="b955935eafd1c9f37f4ae225fe7b632bdd353702" src="https://lk.yourcashflow.ru/pl/lite/widget/script?id=1588954"></script>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
 function toggleFaq(el) {
@@ -1642,6 +1740,24 @@ function toggleFaq(el) {
   document.querySelectorAll('.faq-q').forEach(x => x.classList.remove('open'));
   if (!isOpen) { a.classList.add('open'); el.classList.add('open'); }
 }
+
+function openPaymentModal() {
+  const modal = document.getElementById('paymentModal');
+  modal.classList.add('is-open');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('modal-open');
+}
+
+function closePaymentModal() {
+  const modal = document.getElementById('paymentModal');
+  modal.classList.remove('is-open');
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('modal-open');
+}
+
+window.addEventListener('keydown', function(event) {
+  if (event.key === 'Escape') closePaymentModal();
+});
 </script>
 
 </body>
