@@ -201,6 +201,32 @@ nav {
   margin-top: 12px;
 }
 
+.gc-widget-wrap {
+  max-width: 640px;
+  margin: 0 auto;
+}
+.gc-widget-card {
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+.gc-widget-card iframe {
+  display: block;
+  width: 100% !important;
+  border: 0;
+}
+.gc-widget-note {
+  font-size: 13px;
+  color: rgba(255,255,255,0.45);
+  margin-top: 12px;
+}
+@media (max-width: 640px) {
+  .gc-widget-wrap {
+    max-width: 100%;
+  }
+}
+
 /* ─── VIDEO BOX ─── */
 .video-box {
   background: #111;
@@ -1552,10 +1578,12 @@ nav {
 
     </div>
 
-    <a href="https://lk.yourcashflow.ru" class="btn-primary btn-primary-lg" target="_blank" style="font-size:20px; padding:18px 48px;">
-      <span style="text-decoration:line-through;opacity:.45;font-size:14px;font-weight:400;">21&nbsp;950&nbsp;₽</span> Получить доступ за 1&nbsp;490&nbsp;₽ →
-    </a>
-    <p class="btn-sub">Доступ на 1 месяц · Гарантия возврата за 3 урока без вопросов</p>
+    <div class="gc-widget-wrap">
+      <div class="gc-widget-card">
+        <script id="b955935eafd1c9f37f4ae225fe7b632bdd353702" src="https://lk.yourcashflow.ru/pl/lite/widget/script?id=1588954"></script>
+      </div>
+      <p class="gc-widget-note">После ввода данных человек сразу переходит на страницу оплаты в GetCourse.</p>
+    </div>
 
   </div>
 </section>
