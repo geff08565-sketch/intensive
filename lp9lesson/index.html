@@ -26,7 +26,7 @@
   }
   body > * { position:relative; z-index:1; }
 
-  .header { text-align:center; padding:32px 20px 16px; }
+  .header { text-align:center; padding:calc(env(safe-area-inset-top, 0px) + 32px) 20px 16px; }
   .header .eyebrow { color:var(--accent); font-size:13px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; justify-content:center; gap:8px; }
   .header h1 { font-size:28px; font-weight:700; color:#fff; letter-spacing:-0.01em; text-shadow:0 2px 12px rgba(0,0,0,0.5); }
 
@@ -64,10 +64,25 @@
   .config-row label { font-size:13px; color:var(--text-dim); min-width:160px; }
   input[type=number] { padding:8px 12px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:14px; width:100px; text-align:center; font-family:'Montserrat',sans-serif; }
 
-  .price-slider-wrap { margin:0 20px; }
+  .price-slider-wrap { margin:0 20px; position:relative; padding-top:22px; }
   .price-slider { width:100%; -webkit-appearance:none; height:6px; border-radius:3px; background:linear-gradient(90deg,var(--red),var(--yellow),var(--green),var(--yellow),var(--red)); outline:none; cursor:pointer; }
   .price-slider::-webkit-slider-thumb { -webkit-appearance:none; width:24px; height:24px; border-radius:50%; background:white; border:3px solid var(--accent); cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.3); }
   .price-labels { display:flex; justify-content:space-between; margin:4px 20px 0; font-size:11px; color:var(--text-dim); }
+
+  /* Range boundary markers on slider */
+  .range-mark { position:absolute; top:0; transform:translateX(-50%); pointer-events:none; z-index:2; }
+  .range-mark-line { width:2px; height:22px; margin:0 auto; }
+  .range-mark-lbl { font-size:10px; font-weight:700; text-align:center; white-space:nowrap; margin-top:-2px; padding:1px 4px; border-radius:3px; background:rgba(17,17,17,0.85); }
+  .range-mark.lower .range-mark-line { background:var(--green); }
+  .range-mark.lower .range-mark-lbl { color:var(--green); border:1px solid rgba(34,197,94,0.4); }
+  .range-mark.upper .range-mark-line { background:var(--accent); }
+  .range-mark.upper .range-mark-lbl { color:var(--accent); border:1px solid rgba(250,102,15,0.4); }
+
+  .status-badge.status-in { background:rgba(34,197,94,0.15); color:var(--green); border:1px solid rgba(34,197,94,0.3); }
+  .status-badge.status-out { background:rgba(250,102,15,0.15); color:var(--accent); border:1px solid rgba(250,102,15,0.3); }
+  .range-badge { display:inline-block; font-size:11px; font-weight:700; padding:3px 8px; border-radius:6px; margin-top:8px; letter-spacing:0.3px; }
+  .range-badge.in { background:rgba(34,197,94,0.15); color:var(--green); border:1px solid rgba(34,197,94,0.3); }
+  .range-badge.out { background:rgba(250,102,15,0.15); color:var(--accent); border:1px solid rgba(250,102,15,0.3); }
 
   .status-badge { display:inline-block; padding:8px 16px; border-radius:8px; font-weight:600; font-size:14px; text-align:center; width:100%; }
 
@@ -274,6 +289,7 @@
         <div style="text-align:center;">
           <div class="panel-label" style="background:var(--green);color:#000;">ЦЕНА +30% ↑</div>
           <h3 style="margin-top:8px;">📈 <span id="cup-price">$3,250</span></h3>
+          <div class="range-badge in" id="cup-badge">✓ В диапазоне</div>
           <div style="font-size:14px; line-height:2; margin-top:12px;">
             <div>HODL: <b id="cup-hodl">$0</b></div>
             <div>Пул: <b id="cup-pool">$0</b></div>
@@ -292,6 +308,7 @@
         <div style="text-align:center;">
           <div class="panel-label" style="background:var(--red);color:#fff;">ЦЕНА -30% ↓</div>
           <h3 style="margin-top:8px;">📉 <span id="cdn-price">$1,750</span></h3>
+          <div class="range-badge in" id="cdn-badge">✓ В диапазоне</div>
           <div style="font-size:14px; line-height:2; margin-top:12px;">
             <div>HODL: <b id="cdn-hodl">$0</b></div>
             <div>Пул: <b id="cdn-pool">$0</b></div>
@@ -313,9 +330,14 @@
         Цена ETH: <b style="color:var(--yellow);" id="c-slider-display">$2,500</b>
       </div>
       <div class="price-slider-wrap">
+        <div class="range-mark lower" id="c-mark-lower" style="left:33.33%;"><div class="range-mark-line"></div><div class="range-mark-lbl" id="c-mark-lower-lbl">$2,000</div></div>
+        <div class="range-mark upper" id="c-mark-upper" style="left:55.56%;"><div class="range-mark-line"></div><div class="range-mark-lbl" id="c-mark-upper-lbl">$3,000</div></div>
         <input type="range" class="price-slider" id="c-slider" min="500" max="5000" value="2500" step="10" oninput="calcSlider()">
       </div>
       <div class="price-labels"><span>$500</span><span>$5,000</span></div>
+      <div style="text-align:center; margin-top:12px;">
+        <div class="status-badge status-in" id="c-slider-status">✅ В диапазоне — зарабатываешь комиссии</div>
+      </div>
 
       <!-- Detailed comparison like tab 1 -->
       <div class="compare-row" style="margin-top:20px;">
@@ -648,6 +670,7 @@ function calcIL() {
   document.getElementById('cup-il').textContent = fmtI(u.il) + ' (' + u.ilPct.toFixed(1) + '%)';
   const weeksUp = feesWk > 0 ? Math.ceil(u.il / feesWk) : '∞';
   document.getElementById('cup-weeks').textContent = weeksUp + ' нед';
+  setRangeBadge('cup-badge', pUp, lower, upper);
 
   // -30%
   const pDn = entry * 0.7;
@@ -658,8 +681,17 @@ function calcIL() {
   document.getElementById('cdn-il').textContent = fmtI(d.il) + ' (' + d.ilPct.toFixed(1) + '%)';
   const weeksDn = feesWk > 0 ? Math.ceil(d.il / feesWk) : '∞';
   document.getElementById('cdn-weeks').textContent = weeksDn + ' нед';
+  setRangeBadge('cdn-badge', pDn, lower, upper);
 
   calcSlider();
+}
+
+function setRangeBadge(elId, price, lower, upper) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (price > upper) { el.className = 'range-badge out'; el.textContent = '⚠️ Выше диапазона'; }
+  else if (price < lower) { el.className = 'range-badge out'; el.textContent = '⚠️ Ниже диапазона'; }
+  else { el.className = 'range-badge in'; el.textContent = '✓ В диапазоне'; }
 }
 
 function calcSlider() {
@@ -674,6 +706,30 @@ function calcSlider() {
   const feesWk = totalIn * (apr / 100) / 52;
 
   document.getElementById('c-slider-display').textContent = '$' + price.toLocaleString();
+
+  // Update range boundary markers on slider
+  const sMin = 500, sMax = 5000;
+  const lowerPct = Math.max(0, Math.min(100, ((lower - sMin) / (sMax - sMin)) * 100));
+  const upperPct = Math.max(0, Math.min(100, ((upper - sMin) / (sMax - sMin)) * 100));
+  const mLo = document.getElementById('c-mark-lower');
+  const mHi = document.getElementById('c-mark-upper');
+  if (mLo) { mLo.style.left = lowerPct + '%'; document.getElementById('c-mark-lower-lbl').textContent = '$' + lower.toLocaleString(); }
+  if (mHi) { mHi.style.left = upperPct + '%'; document.getElementById('c-mark-upper-lbl').textContent = '$' + upper.toLocaleString(); }
+
+  // Update slider status
+  const sEl = document.getElementById('c-slider-status');
+  if (sEl) {
+    if (price >= lower && price <= upper) {
+      sEl.className = 'status-badge status-in';
+      sEl.textContent = '✅ В диапазоне — зарабатываешь комиссии';
+    } else if (price > upper) {
+      sEl.className = 'status-badge status-out';
+      sEl.textContent = '⚠️ Выше диапазона — 100% USDC, комиссии = 0';
+    } else {
+      sEl.className = 'status-badge status-out';
+      sEl.textContent = '⚠️ Ниже диапазона — 100% ETH, комиссии = 0';
+    }
+  }
 
   const L = calcLFromInputs();
   if (L <= 0) return;
