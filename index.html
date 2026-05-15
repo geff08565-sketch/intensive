@@ -729,13 +729,13 @@ body.modal-open {
   });
   window.__yc_utm = utmFinal;
 
-  // 4. На DOM-ready патчим все href на lk.yourcashflow.ru, добавляя UTM
+  // 4. На DOM-ready патчим owned/GetCourse href, добавляя UTM
   function patchLinks() {
     var hasAny = false;
     UTM_KEYS.forEach(function(k) { if (utmFinal[k]) hasAny = true; });
     if (!hasAny) return;
 
-    var nodes = document.querySelectorAll('a[href*="lk.yourcashflow.ru"], a[href*="yourcashflow.getcourse.ru"]');
+    var nodes = document.querySelectorAll('a[href*="lk.yourcashflow.ru"], a[href*="yourcashflow.getcourse.ru"], a[href*="post.yourcashflow.ru"], a[href*="intensive.yourcashflow.ru"], a[href*="kpv.yourcashflow.ru"], a[href*="learn.yourcashflow.ru"]');
     nodes.forEach(function(a) {
       try {
         var u = new URL(a.href);
@@ -1839,6 +1839,10 @@ function toggleFaq(el) {
 }
 
 function openPaymentModal() {
+  if (window.ym) {
+    ym(108681680, 'reachGoal', 'payment_intent');
+    ym(108681680, 'reachGoal', 'intensive_payment_intent');
+  }
   const modal = document.getElementById('paymentModal');
   modal.classList.add('is-open');
   modal.setAttribute('aria-hidden', 'false');
